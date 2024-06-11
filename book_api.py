@@ -1,13 +1,31 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from typing import Optional, List
 from uuid import UUID, uuid4
+import sqlite3
+import json
+
+connection = sqlite3.connect("books.db", check_same_thread=False)
+cur = connection.cursor()
+#cur.execute("CREATE TABLE Books(id, title, price, kind)")
+
+#res = cur.execute("SELECT * FROM books WHERE ID = '1f5b0bb7-f5e2-404c-b9ae-10fc2af8dc12'")
+#test = res.fetchone()
+#print(test)
+
+# cur.execute("""
+#     INSERT INTO books VALUES
+#         ('Prophet Song', 1975, 8.2),
+#         ('And Now for Something Completely Different', 1971, 7.5)
+# """)
 
 app = FastAPI()
 
 class Book(BaseModel):
     id: Optional[UUID] = None
-    name: str
+    title: str
     price: float
     kind: Optional[str] = None
 
@@ -19,14 +37,27 @@ def read_root():
 
 @app.get("/books/", response_model=List[Book])
 def read_books():
-    return books
+    res = cur.execute("SELECT * FROM books")
+    book_list = res.fetchall()
+    json_str = jsonable_encoder(book_list)
+    #json_str = json.dumps(book_list)
+    print(json_str)
+    return JSONResponse(content=json_str)
+    #return books
 
 @app.get("/books/{book_id}", response_model=Book)
 def read_book(book_id: UUID):
-    for book in books:
-        if book.id == book_id:
-            return book
-    raise HTTPException(status_code=404, detail="Book not found.")
+    # for book in books:
+    #     if book.id == book_id:
+    #         return book
+    res = cur.execute(f"SELECT * FROM books WHERE ID = '{book_id}'")
+    #print(res.fetchone())
+    book_list = res.fetchone()
+    if book_list:
+        json_str = jsonable_encoder(book_list)
+        return JSONResponse(content=json_str)
+    else:
+        raise HTTPException(status_code=404, detail="Book not found.")
 
 @app.put("/books/{book_id}", response_model=Book)
 def update_book(book_id: UUID, book_update: Book):
@@ -41,6 +72,8 @@ def update_book(book_id: UUID, book_update: Book):
 async def create_book(book: Book):
     book.id = uuid4()
     books.append(book)
+    cur.execute(f" INSERT INTO books VALUES ('{book.id}','{book.title}', {book.price}, '{book.kind}') ")
+    connection.commit()
     return book
 
 @app.delete("/books/{book_id}", response_model=Book)
