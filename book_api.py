@@ -72,13 +72,22 @@ def update_book(book_id: UUID, book_update: Book):
 async def create_book(book: Book):
     book.id = uuid4()
     books.append(book)
-    cur.execute(f" INSERT INTO books VALUES ('{book.id}','{book.title}', {book.price}, '{book.kind}') ")
+    cur.execute(f"INSERT INTO books VALUES ('{book.id}','{book.title}', {book.price}, '{book.kind}') ")
     connection.commit()
     return book
 
 @app.delete("/books/{book_id}", response_model=Book)
 async def delete_book(book_id: UUID):
-    for idx, book in enumerate(books):
-        if book.id == book_id:
-            return books.pop(idx)
-    raise HTTPException(status_code=404, detail="Book not found. Cannot delete.")
+    #for idx, book in enumerate(books):
+    #    if book.id == book_id:
+    res = cur.execute(f"DELETE FROM books WHERE id = '{book_id}'")
+    print(res.rowcount)
+    if(res.rowcount > 0):
+        connection.commit()
+        return JSONResponse(status_code=200, content="Book successfully deleted.")  
+    else:
+        raise HTTPException(status_code=404, detail="Book not found. Cannot delete.")
+    
+    #return "Book"
+    #        return books.pop(idx)
+    #raise HTTPException(status_code=404, detail="Book not found. Cannot delete.")
