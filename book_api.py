@@ -25,9 +25,9 @@ app = FastAPI()
 
 class Book(BaseModel):
     id: Optional[UUID] = None
+    kind: Optional[str] = None
     title: str
     price: float
-    kind: Optional[str] = None
 
 books = [] 
 
@@ -61,12 +61,18 @@ def read_book(book_id: UUID):
 
 @app.put("/books/{book_id}", response_model=Book)
 def update_book(book_id: UUID, book_update: Book):
-    for idx, book in enumerate(books):
-        if book.id == book_id:
-            updated_book = book.copy(update=book_update.dict(exclude_unset=True))
-            books[idx] = update_book
-            return updated_book
-    raise HTTPException(status_code=404, detail="Book not found. Cannot update.")
+    res = cur.execute(f"UPDATE books SET price = {book_update.price} WHERE id = '{book_id}'")
+    if res.rowcount > 0:
+        connection.commit()
+        return book_update
+    else:
+        raise HTTPException(status_code=404, detail="Could not update book.")
+    # for idx, book in enumerate(books):
+    #     if book.id == book_id:
+    #         updated_book = book.copy(update=book_update.dict(exclude_unset=True))
+    #         books[idx] = update_book
+    #         return updated_book
+    # raise HTTPException(status_code=404, detail="Book not found. Cannot update.")
 
 @app.post("/books/", response_model=Book)
 async def create_book(book: Book):
